@@ -1,8 +1,9 @@
 #![allow(dead_code)]
 
 use anyhow::Result;
+use serde::Serialize;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize)]
 pub enum TokenType {
     // Single-character tokens
     LParen,
@@ -45,13 +46,13 @@ pub enum TokenType {
     EOF,
     Illegal,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Position {
     line: usize,
     column: usize,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Token {
     pub token_type: TokenType,
     pub literal: String,
