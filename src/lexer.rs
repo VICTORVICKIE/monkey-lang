@@ -46,10 +46,12 @@ pub enum TokenType {
     EOF,
     Illegal,
 }
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Position {
     line: usize,
     column: usize,
+    width: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -65,6 +67,7 @@ pub struct Lexer {
     ch: u8,
     curr_pos: usize,
     peek_pos: usize,
+    pos: Position,
 }
 
 impl Into<Vec<Token>> for Lexer {
@@ -89,6 +92,11 @@ impl Lexer {
             peek_pos: 0,
             ch: 0,
             input: input.into_bytes(),
+            pos: Position {
+                line: 1,
+                column: 0,
+                width: 0,
+            },
         };
         lex.read_char();
 
@@ -112,10 +120,17 @@ impl Lexer {
 
         self.curr_pos = self.peek_pos;
         self.peek_pos += 1;
+
+        self.pos.column += 1;
     }
 
     fn skip_whitespace(&mut self) {
         while self.ch.is_ascii_whitespace() {
+            if self.ch == b'\n' {
+                self.pos.line += 1;
+                self.pos.column = 0;
+            }
+
             self.read_char();
         }
     }
@@ -127,7 +142,7 @@ impl Lexer {
             self.read_char();
         }
 
-        String::from_utf8_lossy(&self.input[start_pos..self.curr_pos]).to_string()
+        return String::from_utf8_lossy(&self.input[start_pos..self.curr_pos]).to_string();
     }
 
     fn read_number(&mut self) -> String {
@@ -137,12 +152,13 @@ impl Lexer {
             self.read_char();
         }
 
-        String::from_utf8_lossy(&self.input[start_pos..self.curr_pos]).to_string()
+        return String::from_utf8_lossy(&self.input[start_pos..self.curr_pos]).to_string();
     }
 
     pub fn next_token(&mut self) -> Result<Token> {
         self.skip_whitespace();
 
+        let mut peek_ch: Option<u8> = None;
         let token_type = match self.ch {
             b'{' => TokenType::LCurly,
             b'}' => TokenType::RCurly,
@@ -155,6 +171,7 @@ impl Lexer {
             b'!' => {
                 if self.peek_char() == b'=' {
                     self.read_char();
+                    peek_ch = Some(b'=');
                     TokenType::NotEqual
                 } else {
                     TokenType::Bang
@@ -163,6 +180,7 @@ impl Lexer {
             b'>' => {
                 if self.peek_char() == b'=' {
                     self.read_char();
+                    peek_ch = Some(b'=');
                     TokenType::GreaterThanOrEqual
                 } else {
                     TokenType::GreaterThan
@@ -171,6 +189,7 @@ impl Lexer {
             b'<' => {
                 if self.peek_char() == b'=' {
                     self.read_char();
+                    peek_ch = Some(b'=');
                     TokenType::LessThanOrEqual
                 } else {
                     TokenType::LessThan
@@ -181,6 +200,7 @@ impl Lexer {
             b'=' => {
                 if self.peek_char() == b'=' {
                     self.read_char();
+                    peek_ch = Some(b'=');
                     TokenType::Equal
                 } else {
                     TokenType::Assign
@@ -199,36 +219,49 @@ impl Lexer {
                     "return" => TokenType::Return,
                     _ => TokenType::Identifier(identifier.clone()),
                 };
+                let width = identifier.len();
                 return Ok(Token {
                     token_type,
                     literal: identifier,
                     position: Position {
-                        line: 0,
-                        column: self.curr_pos,
+                        line: self.pos.line,
+                        column: self.pos.column - &width,
+                        width,
                     },
                 });
             }
             b'0'..=b'9' => {
                 let number = self.read_number();
+                let width = number.len();
                 return Ok(Token {
                     token_type: TokenType::Number(number.clone()),
                     literal: number,
                     position: Position {
-                        line: 0,
-                        column: self.curr_pos,
+                        line: self.pos.line,
+                        column: self.pos.column - &width,
+                        width,
                     },
                 });
             }
             0 => TokenType::EOF,
             _ => TokenType::Illegal,
         };
+
+        let mut literal = String::from_utf8_lossy(&[self.ch]).to_string();
+        let mut column = self.pos.column;
+        if let Some(peek) = peek_ch {
+            literal = String::from_utf8_lossy(&[self.ch, peek]).to_string();
+            column = self.pos.column - 1;
+        }
+
         let token = Token {
-            token_type,
-            literal: String::from_utf8_lossy(&[self.ch]).to_string(),
             position: Position {
-                line: 0,
-                column: self.curr_pos,
+                line: self.pos.line,
+                column,
+                width: literal.len(),
             },
+            token_type,
+            literal,
         };
         self.read_char();
 
