@@ -56,6 +56,7 @@ pub struct Position {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Token {
+    pub tag: String,
     pub token_type: TokenType,
     pub literal: String,
     pub position: Position,
@@ -208,19 +209,20 @@ impl Lexer {
             }
             b'a'..=b'z' | b'A'..=b'Z' | b'_' => {
                 let identifier = self.read_identifier();
-                let token_type = match identifier.as_str() {
-                    "fn" => TokenType::Function,
-                    "let" => TokenType::Let,
-                    "if" => TokenType::If,
-                    "elif" => TokenType::Elif,
-                    "else" => TokenType::Else,
-                    "false" => TokenType::False,
-                    "true" => TokenType::True,
-                    "return" => TokenType::Return,
-                    _ => TokenType::Identifier(identifier.clone()),
+                let (token_type, tag) = match identifier.as_str() {
+                    "fn" => (TokenType::Function, "keyword"),
+                    "let" => (TokenType::Let, "keyword"),
+                    "if" => (TokenType::If, "keyword"),
+                    "elif" => (TokenType::Elif, "keyword"),
+                    "else" => (TokenType::Else, "keyword"),
+                    "false" => (TokenType::False, "boolean"),
+                    "true" => (TokenType::True, "boolean"),
+                    "return" => (TokenType::Return, "keyword"),
+                    _ => (TokenType::Identifier(identifier.clone()), "identifier"),
                 };
                 let width = identifier.len();
                 return Ok(Token {
+                    tag: tag.to_string(),
                     token_type,
                     literal: identifier,
                     position: Position {
@@ -234,6 +236,7 @@ impl Lexer {
                 let number = self.read_number();
                 let width = number.len();
                 return Ok(Token {
+                    tag: "number".to_string(),
                     token_type: TokenType::Number(number.clone()),
                     literal: number,
                     position: Position {
@@ -260,6 +263,7 @@ impl Lexer {
                 column,
                 width: literal.len(),
             },
+            tag: "operator".to_string(),
             token_type,
             literal,
         };
