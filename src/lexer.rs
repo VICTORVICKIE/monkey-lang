@@ -50,9 +50,9 @@ pub enum TokenType {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Position {
-    line: usize,
-    column: usize,
-    width: usize,
+    pub line: usize,
+    pub column: usize,
+    pub width: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
